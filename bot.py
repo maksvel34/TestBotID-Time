@@ -542,24 +542,44 @@ async def today_schedule(message: Message):
                           datetime.combine(get_local_date(), lesson["end"])).total_seconds()
             gap_minutes = int(gap_seconds // 60)
             
-            if gap_minutes > 10:  # ✅ Показываем окна больше 10 минут
+            if gap_minutes > 30:  # ✅ Показываем окна больше 10 минут
                 text += f"⏸️ <b>Окно: {gap_minutes} мин</b>\n\n"
     
     await message.answer(text, parse_mode=ParseMode.HTML)
 
 @dp.message(F.text == "📅 Расписание завтра")
 async def tomorrow_schedule(message: Message):
-    if not is_allowed_thread(message):
+    if not is_allowed_thread(message): 
         return
-    tomorrow = get_local_date() + timedelta(days=1)  # ✅ Было: date.today()
+    
+    tomorrow = get_local_date() + timedelta(days=1)
     lessons = get_schedule(tomorrow)
+    
     if not lessons:
-        await message.answer(random.choice(NO_CLASSES_PHRASES));
+        await message.answer(random.choice(NO_CLASSES_PHRASES))
         return
+    
+    # ✅ Сортируем уроки по времени начала
+    lessons_sorted = sorted(lessons, key=lambda x: x["start"])
+    
     text = "<b>📅 Завтра:</b>\n\n"
-    for lesson in lessons:
-        text += f"⏰ {lesson['start'].strftime('%H:%M')}–{lesson['end'].strftime('%H:%M')}\n📚 {lesson['name']}\n🚪 {lesson['room']} | 👨‍🏫 {lesson['teacher']}\n\n"
-    await message.answer(text)
+    
+    for i, lesson in enumerate(lessons_sorted):
+        text += f"⏰ {lesson['start'].strftime('%H:%M')}–{lesson['end'].strftime('%H:%M')}\n"
+        text += f"📚 {lesson['name']}\n"
+        text += f"🚪 {lesson['room']} | 👨‍🏫 {lesson['teacher']}\n\n"
+        
+        # ✅ Добавляем окно между парами (если есть промежуток > 10 мин)
+        if i < len(lessons_sorted) - 1:
+            next_lesson = lessons_sorted[i + 1]
+            gap_seconds = (datetime.combine(tomorrow, next_lesson["start"]) - 
+                          datetime.combine(tomorrow, lesson["end"])).total_seconds()
+            gap_minutes = int(gap_seconds // 60)
+            
+            if gap_minutes > 30:  # ✅ Показываем окна больше 10 минут
+                text += f"⏸️ <b>Окно: {gap_minutes} мин</b>\n\n"
+    
+    await message.answer(text, parse_mode=ParseMode.HTML)
 
 
 @dp.message(F.text == "🔔 Подписаться на уведомления")
@@ -1124,6 +1144,7 @@ async def get_thread_id(message: Message):
 if __name__ == "__main__":
 
     asyncio.run(main())
+
 
 
 
